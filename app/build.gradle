@@ -1,0 +1,50 @@
+plugins { id 'com.android.application' }
+
+// all app settings come from ../app.properties (UTF-8, Thai names allowed)
+def cfg = new Properties()
+rootProject.file('app.properties').withReader('UTF-8') { cfg.load(it) }
+def site = new URL(cfg.siteUrl.trim())
+def host = site.host
+def xml = { String s -> s.replace('&', '&amp;').replace('<', '&lt;').replace('"', '\\"').replace("'", "\\'") }
+def assetStatements = '[{"relation":["delegate_permission/common.handle_all_urls"],"target":{"namespace":"web","site":"https://' + host + '"}}]'
+
+android {
+    namespace 'th.school.twa'
+    compileSdk 34
+    defaultConfig {
+        applicationId cfg.packageId.trim()
+        minSdk 21
+        targetSdk 34
+        versionCode((System.getenv('VERSION_CODE') ?: '1') as int)
+        versionName "${cfg.versionName.trim()}.${System.getenv('VERSION_CODE') ?: '0'}"
+        resValue 'string', 'appName', xml(cfg.appName.trim())
+        resValue 'string', 'launcherName', xml(cfg.launcherName.trim())
+        resValue 'string', 'launchUrl', site.toString()
+        resValue 'string', 'assetStatements', xml(assetStatements)
+        resValue 'color', 'colorPrimary', cfg.themeColor.trim()
+        resValue 'color', 'backgroundColor', cfg.backgroundColor.trim()
+        manifestPlaceholders = [hostName: host]
+    }
+    signingConfigs {
+        release {
+            def ks = System.getenv('KEYSTORE_PATH')
+            if (ks) {
+                storeFile file(ks)
+                storePassword System.getenv('KEYSTORE_PASSWORD')
+                keyAlias System.getenv('KEY_ALIAS')
+                keyPassword System.getenv('KEY_PASSWORD')
+            }
+        }
+    }
+    buildTypes {
+        release {
+            minifyEnabled false
+            signingConfig System.getenv('KEYSTORE_PATH') ? signingConfigs.release : signingConfigs.debug
+        }
+    }
+    compileOptions { sourceCompatibility JavaVersion.VERSION_17; targetCompatibility JavaVersion.VERSION_17 }
+}
+
+dependencies {
+    implementation 'com.google.androidbrowserhelper:androidbrowserhelper:2.5.0'
+}
